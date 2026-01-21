@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 ARG ENTERPRISE_ACCESS_REPO
-ARG ENTERPRISE_ACCESS_VERSION
 
 # App location
 ENV ENTERPRISE_ACCESS_APP_DIR=/openedx/enterprise-access
@@ -31,7 +30,7 @@ WORKDIR ${ENTERPRISE_ACCESS_APP_DIR}
 # Clone & checkout the requested ref. We use --depth=1 to keep builds fast.
 RUN git clone --depth 1 ${ENTERPRISE_ACCESS_REPO} . \
  && (git fetch --depth 1 origin ${{ OPENEDX_COMMON_VERSION }} || true) \
- && git checkout ${ENTERPRISE_ACCESS_VERSION}
+ && git checkout ${{ OPENEDX_COMMON_VERSION }}
 
 # Copy Tutor-specific settings overlay (kept in this plugin)
 # These files should be robust across named releases; they only override config via env vars.

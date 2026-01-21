@@ -1,0 +1,43 @@
+echo "enterprise-access lms init: creating dev OAuth clients"
+./manage.py lms create_dot_application \
+    --grant-type client-credentials \
+    --redirect-uris "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ ENTERPRISE_ACCESS_HOST }}:{{ ENTERPRISE_ACCESS_PORT }}/complete/edx-oauth2/" \
+    --client-id {{ ENTERPRISE_ACCESS_OAUTH2_KEY_DEV }} \
+    --client-secret {{ ENTERPRISE_ACCESS_OAUTH2_SECRET_DEV }} \
+    --scopes user_id \
+    --skip-authorization \
+    --update \
+    enterprise-access-dev \
+    enterprise-access
+./manage.py lms create_dot_application \
+    --grant-type authorization-code \
+    --redirect-uris "http://{{ ENTERPRISE_ACCESS_HOST }}:{{ ENTERPRISE_ACCESS_PORT }}/complete/edx-oauth2/" \
+    --client-id {{ ENTERPRISE_ACCESS_OAUTH2_KEY_SSO_DEV }} \
+    --client-secret {{ ENTERPRISE_ACCESS_OAUTH2_SECRET_SSO_DEV }} \
+    --scopes user_id \
+    --skip-authorization \
+    --update \
+    enterprise-access-sso-dev \
+    enterprise-access
+
+echo "enterprise-access lms init: creating prod OAuth clients"
+./manage.py lms create_dot_application \
+    --grant-type client-credentials \
+    --redirect-uris "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ ENTERPRISE_ACCESS_HOST }}/complete/edx-oauth2/" \
+    --client-id {{ ENTERPRISE_ACCESS_OAUTH2_KEY }} \
+    --client-secret {{ ENTERPRISE_ACCESS_OAUTH2_SECRET }} \
+    --scopes user_id \
+    --skip-authorization \
+    --update \
+    enterprise-access \
+    enterprise-access
+./manage.py lms create_dot_application \
+    --grant-type authorization-code \
+    --redirect-uris "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ ENTERPRISE_ACCESS_HOST }}/complete/edx-oauth2/" \
+    --client-id {{ ENTERPRISE_ACCESS_OAUTH2_KEY_SSO }} \
+    --client-secret {{ ENTERPRISE_ACCESS_OAUTH2_SECRET_SSO }} \
+    --scopes user_id \
+    --skip-authorization \
+    --update \
+    enterprise-access-sso \
+    enterprise-access

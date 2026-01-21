@@ -13,30 +13,37 @@ from .__about__ import __version__
 
 hooks.Filters.CONFIG_DEFAULTS.add_items(
     [
-        # Add your new settings that have default values here.
-        # Each new setting is a pair: (setting_name, default_value).
-        # Prefix your setting names with 'ENTERPRISE_ACCESS_'.
-        ("ENTERPRISE_ACCESS_VERSION", __version__),
+        ("ENTERPRISE_ACCESS_ENABLED", True),
+        ("ENTERPRISE_ACCESS_REPO", "https://github.com/openedx/enterprise-access.git"),
+        ("ENTERPRISE_ACCESS_HOST", "enterprise-access.{{ LMS_HOST }}"),
+        ("ENTERPRISE_ACCESS_PORT", 18100),
+
+        # Database (reuse Tutor's MySQL)
+        ("ENTERPRISE_ACCESS_MYSQL_DATABASE", "enterprise_access"),
+        ("ENTERPRISE_ACCESS_MYSQL_USERNAME", "enterprise_access"),
+
+        # Redis (reuse Tutor's Redis; default to its own DB index)
+        ("ENTERPRISE_ACCESS_REDIS_DB", 9),
+
+        # Docker image tag built by this plugin
+        ("ENTERPRISE_ACCESS_DOCKER_IMAGE", "{{ DOCKER_REGISTRY }}enterprise-access:{{ OPENEDX_COMMON_VERSION }}"),
+
+        # OAuth2 clients (created in LMS during init)
+        ("ENTERPRISE_ACCESS_OAUTH2_KEY_DEV", "enterprise-access-dev"),
+        ("ENTERPRISE_ACCESS_OAUTH2_KEY_SSO_DEV", "enterprise-access-sso-dev"),
+        ("ENTERPRISE_ACCESS_OAUTH2_KEY", "enterprise-access"),
+        ("ENTERPRISE_ACCESS_OAUTH2_KEY_SSO", "enterprise-access-sso"),
     ]
 )
 
 hooks.Filters.CONFIG_UNIQUE.add_items(
     [
-        # Add settings that don't have a reasonable default for all users here.
-        # For instance: passwords, secret keys, etc.
-        # Each new setting is a pair: (setting_name, unique_generated_value).
-        # Prefix your setting names with 'ENTERPRISE_ACCESS_'.
-        # For example:
-        ### ("ENTERPRISE_ACCESS_SECRET_KEY", "{{ 24|random_string }}"),
-    ]
-)
-
-hooks.Filters.CONFIG_OVERRIDES.add_items(
-    [
-        # Danger zone!
-        # Add values to override settings from Tutor core or other plugins here.
-        # Each override is a pair: (setting_name, new_value). For example:
-        ### ("PLATFORM_NAME", "My platform"),
+        ("ENTERPRISE_ACCESS_MYSQL_PASSWORD", "{{ 24|random_string }}"),
+        ("ENTERPRISE_ACCESS_DJANGO_SECRET_KEY", "{{ 50|random_string }}"),
+        ("ENTERPRISE_ACCESS_OAUTH2_SECRET_DEV", "{{ 32|random_string }}"),
+        ("ENTERPRISE_ACCESS_OAUTH2_SECRET_SSO_DEV", "{{ 32|random_string }}"),
+        ("ENTERPRISE_ACCESS_OAUTH2_SECRET", "{{ 32|random_string }}"),
+        ("ENTERPRISE_ACCESS_OAUTH2_SECRET_SSO", "{{ 32|random_string }}"),
     ]
 )
 
@@ -45,80 +52,40 @@ hooks.Filters.CONFIG_OVERRIDES.add_items(
 # INITIALIZATION TASKS
 ########################################
 
-# To add a custom initialization task, create a bash script template under:
-# tutorenterprise_access/templates/enterprise-access/tasks/
-# and then add it to the MY_INIT_TASKS list. Each task is in the format:
-# ("<service>", ("<path>", "<to>", "<script>", "<template>"))
-MY_INIT_TASKS: list[tuple[str, tuple[str, ...]]] = [
-    # For example, to add LMS initialization steps, you could add the script template at:
-    # tutorenterprise_access/templates/enterprise-access/tasks/lms/init.sh
-    # And then add the line:
-    ### ("lms", ("enterprise-access", "tasks", "lms", "init.sh")),
+# Init tasks are executed by `tutor local do init --limit=...`
+# We register them by reading the bash templates we ship.
+INIT_TASKS = [
+    ("mysql", ("enterprise-access", "tasks", "mysql", "init.sh")),
+    ("lms", ("enterprise-access", "tasks", "lms", "init.sh")),
+    ("enterprise-access", ("enterprise-access", "tasks", "enterprise-access", "init.sh")),
 ]
 
-
-# For each task added to MY_INIT_TASKS, we load the task template
-# and add it to the CLI_DO_INIT_TASKS filter, which tells Tutor to
-# run it as part of the `init` job.
-for service, template_path in MY_INIT_TASKS:
-    full_path: str = str(
+for service, template_path in INIT_TASKS:
+    full_path = str(
         importlib_resources.files("tutorenterprise_access")
         / os.path.join("templates", *template_path)
     )
-    with open(full_path, encoding="utf-8") as init_task_file:
-        init_task: str = init_task_file.read()
-    hooks.Filters.CLI_DO_INIT_TASKS.add_item((service, init_task))
-
+    with open(full_path, encoding="utf-8") as f:
+        hooks.Filters.CLI_DO_INIT_TASKS.add_item((service, f.read()))
 
 ########################################
 # DOCKER IMAGE MANAGEMENT
 ########################################
 
-
-# Images to be built by `tutor images build`.
-# Each item is a quadruple in the form:
-#     ("<tutor_image_name>", ("path", "to", "build", "dir"), "<docker_image_tag>", "<build_args>")
-hooks.Filters.IMAGES_BUILD.add_items(
-    [
-        # To build `myimage` with `tutor images build myimage`,
-        # you would add a Dockerfile to templates/enterprise-access/build/myimage,
-        # and then write:
-        ### (
-        ###     "myimage",
-        ###     ("plugins", "enterprise-access", "build", "myimage"),
-        ###     "docker.io/myimage:{{ ENTERPRISE_ACCESS_VERSION }}",
-        ###     (),
-        ### ),
-    ]
+# Build an enterprise-access image from the upstream repo
+hooks.Filters.IMAGES_BUILD.add_item(
+    (
+        "enterprise-access",
+        ("plugins", "enterprise-access", "build", "enterprise-access"),
+        "{{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}",
+        (
+            "OPENEDX_IMAGE={{ DOCKER_IMAGE_OPENEDX }}",
+            "ENTERPRISE_ACCESS_REPO={{ ENTERPRISE_ACCESS_REPO }}",
+        ),
+    )
 )
-
-
-# Images to be pulled as part of `tutor images pull`.
-# Each item is a pair in the form:
-#     ("<tutor_image_name>", "<docker_image_tag>")
-hooks.Filters.IMAGES_PULL.add_items(
-    [
-        # To pull `myimage` with `tutor images pull myimage`, you would write:
-        ### (
-        ###     "myimage",
-        ###     "docker.io/myimage:{{ ENTERPRISE_ACCESS_VERSION }}",
-        ### ),
-    ]
-)
-
-
-# Images to be pushed as part of `tutor images push`.
-# Each item is a pair in the form:
-#     ("<tutor_image_name>", "<docker_image_tag>")
-hooks.Filters.IMAGES_PUSH.add_items(
-    [
-        # To push `myimage` with `tutor images push myimage`, you would write:
-        ### (
-        ###     "myimage",
-        ###     "docker.io/myimage:{{ ENTERPRISE_ACCESS_VERSION }}",
-        ### ),
-    ]
-)
+hooks.Filters.IMAGES_PUSH.add_item(("enterprise-access", "{{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}"))
+hooks.Filters.IMAGES_PULL.add_item(("enterprise-access", "{{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}"))
 
 
 ########################################

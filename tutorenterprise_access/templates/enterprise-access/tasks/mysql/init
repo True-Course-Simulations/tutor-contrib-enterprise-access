@@ -1,6 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
 mysql=(mysql -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u root "-p${MYSQL_ROOT_PASSWORD}")
 
 echo "Creating enterprise-access database and user (if missing)..."
