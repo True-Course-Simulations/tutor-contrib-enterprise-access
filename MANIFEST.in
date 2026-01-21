@@ -1,0 +1,2 @@
+recursive-include tutorenterprise_access/patches *
+recursive-include tutorenterprise_access/templates *

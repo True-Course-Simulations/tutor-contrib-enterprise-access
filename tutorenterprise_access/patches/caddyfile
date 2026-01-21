@@ -1,0 +1,3 @@
+{{ ENTERPRISE_ACCESS_HOST }} {$default_site_port} {
+    import proxy "enterprise-access:8000"
+}
