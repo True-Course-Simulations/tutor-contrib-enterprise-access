@@ -55,9 +55,9 @@ hooks.Filters.CONFIG_UNIQUE.add_items(
 # Init tasks are executed by `tutor local do init --limit=...`
 # We register them by reading the bash templates we ship.
 INIT_TASKS = [
-    ("mysql", ("enterprise-access", "tasks", "mysql", "init.sh")),
-    ("lms", ("enterprise-access", "tasks", "lms", "init.sh")),
-    ("enterprise-access", ("enterprise-access", "tasks", "enterprise-access", "init.sh")),
+    ("mysql", ("enterprise-access", "tasks", "mysql", "init")),
+    ("lms", ("enterprise-access", "tasks", "lms", "init")),
+    ("enterprise-access", ("enterprise-access", "tasks", "enterprise-access", "init")),
 ]
 
 for service, template_path in INIT_TASKS:
