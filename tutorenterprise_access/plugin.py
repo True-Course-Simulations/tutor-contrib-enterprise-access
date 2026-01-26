@@ -13,6 +13,8 @@ from .__about__ import __version__
 
 hooks.Filters.CONFIG_DEFAULTS.add_items(
     [
+        ("DOCKER_REGISTRY", ""),
+        ("DOCKER_IMAGE_PREFIX", ""),
         ("ENTERPRISE_ACCESS_ENABLED", True),
         ("ENTERPRISE_ACCESS_REPO", "https://github.com/openedx/enterprise-access.git"),
         ("ENTERPRISE_ACCESS_HOST", "enterprise-access.{{ LMS_HOST }}"),
@@ -26,7 +28,11 @@ hooks.Filters.CONFIG_DEFAULTS.add_items(
         ("ENTERPRISE_ACCESS_REDIS_DB", 9),
 
         # Docker image tag built by this plugin
-        ("ENTERPRISE_ACCESS_DOCKER_IMAGE", "{{ DOCKER_REGISTRY }}enterprise-access:{{ OPENEDX_COMMON_VERSION }}"),
+        ("ENTERPRISE_ACCESS_DOCKER_IMAGE", ""),
+        (
+            "ENTERPRISE_ACCESS_BUILT_IMAGE",
+            "{{ DOCKER_REGISTRY }}{{ DOCKER_IMAGE_PREFIX }}enterprise-access:{{ OPENEDX_COMMON_VERSION | replace('/', '-') }}",
+        ),
 
         # OAuth2 clients (created in LMS during init)
         ("ENTERPRISE_ACCESS_OAUTH2_KEY_DEV", "enterprise-access-dev"),
@@ -72,20 +78,41 @@ for service, template_path in INIT_TASKS:
 # DOCKER IMAGE MANAGEMENT
 ########################################
 
-# Build an enterprise-access image from the upstream repo
-hooks.Filters.IMAGES_BUILD.add_item(
-    (
-        "enterprise-access",
-        ("plugins", "enterprise-access", "build", "enterprise-access"),
-        "{{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}",
+@hooks.Filters.IMAGES_BUILD.add()
+def enterprise_access_images_build(images, settings):
+    """
+    Build the enterprise-access image only when no external image is configured.
+
+    - If ENTERPRISE_ACCESS_DOCKER_IMAGE is empty: build ENTERPRISE_ACCESS_BUILT_IMAGE.
+    - If ENTERPRISE_ACCESS_DOCKER_IMAGE is set: assume the operator owns that image;
+      we do NOT build anything for this service.
+    """
+    external_image = settings.get("ENTERPRISE_ACCESS_DOCKER_IMAGE")
+    if external_image:
+        # Admin is bringing their own image; don't override it.
+        return images
+
+    images.append(
         (
-            "OPENEDX_IMAGE={{ DOCKER_IMAGE_OPENEDX }}",
-            "ENTERPRISE_ACCESS_REPO={{ ENTERPRISE_ACCESS_REPO }}",
-        ),
+            "enterprise-access",
+            ("plugins", "enterprise-access", "build", "enterprise-access"),
+            settings["ENTERPRISE_ACCESS_BUILT_IMAGE"],
+            (),
+        )
     )
-)
-hooks.Filters.IMAGES_PUSH.add_item(("enterprise-access", "{{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}"))
-hooks.Filters.IMAGES_PULL.add_item(("enterprise-access", "{{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}"))
+    return images
+
+
+@hooks.Filters.IMAGES_PULL.add()
+def enterprise_access_images_pull(images, settings):
+    """
+    When an external enterprise-access image is configured, allow
+    `tutor images pull enterprise-access` to pull it.
+    """
+    external_image = settings.get("ENTERPRISE_ACCESS_DOCKER_IMAGE")
+    if external_image:
+        images.append(("enterprise-access", external_image))
+    return images
 
 
 ########################################

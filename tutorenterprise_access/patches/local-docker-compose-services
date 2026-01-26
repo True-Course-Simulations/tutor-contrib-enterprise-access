@@ -1,5 +1,6 @@
+{% set ENTERPRISE_ACCESS_IMAGE = ENTERPRISE_ACCESS_DOCKER_IMAGE or ENTERPRISE_ACCESS_BUILT_IMAGE %}
 enterprise-access:
-    image: {{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}
+    image: {{ ENTERPRISE_ACCESS_IMAGE }}
     restart: unless-stopped
     depends_on:
       mysql:
@@ -30,23 +31,23 @@ enterprise-access:
       timeout: 3s
       retries: 30
 
-  enterprise-access-worker:
-    image: {{ ENTERPRISE_ACCESS_DOCKER_IMAGE }}
-    restart: unless-stopped
-    depends_on:
-      enterprise-access:
-        condition: service_healthy
-    command: celery -A enterprise_access worker -l INFO
-    environment:
-      DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor
-      DJANGO_SECRET_KEY: {{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}
-      ENTERPRISE_ACCESS_MYSQL_DATABASE: {{ ENTERPRISE_ACCESS_MYSQL_DATABASE }}
-      ENTERPRISE_ACCESS_MYSQL_USERNAME: {{ ENTERPRISE_ACCESS_MYSQL_USERNAME }}
-      ENTERPRISE_ACCESS_MYSQL_PASSWORD: {{ ENTERPRISE_ACCESS_MYSQL_PASSWORD }}
-      ENTERPRISE_ACCESS_MYSQL_HOST: mysql
-      ENTERPRISE_ACCESS_MYSQL_PORT: "3306"
-      ENTERPRISE_ACCESS_REDIS_HOST: redis
-      ENTERPRISE_ACCESS_REDIS_PORT: "6379"
-      ENTERPRISE_ACCESS_REDIS_DB: "{{ ENTERPRISE_ACCESS_REDIS_DB }}"
-      CELERY_BROKER_URL: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
-      CELERY_RESULT_BACKEND: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
+enterprise-access-worker:
+  image: {{ ENTERPRISE_ACCESS_IMAGE }}
+  restart: unless-stopped
+  depends_on:
+    enterprise-access:
+      condition: service_healthy
+  command: celery -A enterprise_access worker -l INFO
+  environment:
+    DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor
+    DJANGO_SECRET_KEY: {{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}
+    ENTERPRISE_ACCESS_MYSQL_DATABASE: {{ ENTERPRISE_ACCESS_MYSQL_DATABASE }}
+    ENTERPRISE_ACCESS_MYSQL_USERNAME: {{ ENTERPRISE_ACCESS_MYSQL_USERNAME }}
+    ENTERPRISE_ACCESS_MYSQL_PASSWORD: {{ ENTERPRISE_ACCESS_MYSQL_PASSWORD }}
+    ENTERPRISE_ACCESS_MYSQL_HOST: mysql
+    ENTERPRISE_ACCESS_MYSQL_PORT: "3306"
+    ENTERPRISE_ACCESS_REDIS_HOST: redis
+    ENTERPRISE_ACCESS_REDIS_PORT: "6379"
+    ENTERPRISE_ACCESS_REDIS_DB: "{{ ENTERPRISE_ACCESS_REDIS_DB }}"
+    CELERY_BROKER_URL: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
+    CELERY_RESULT_BACKEND: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
