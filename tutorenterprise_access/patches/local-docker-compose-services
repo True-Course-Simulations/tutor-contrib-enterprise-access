@@ -2,11 +2,6 @@
 enterprise-access:
     image: {{ ENTERPRISE_ACCESS_IMAGE }}
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_started
     environment:
       DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor
       DJANGO_SECRET_KEY: {{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}

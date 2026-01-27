@@ -39,8 +39,7 @@ RUN git clone --depth 1 --branch ${ENTERPRISE_ACCESS_VERSION} ${ENTERPRISE_ACCES
 COPY ./settings/tutor.py ${ENTERPRISE_ACCESS_APP_DIR}/enterprise_access/settings/tutor.py
 
 # Always install using Python 3.12
-RUN if [ -f requirements.txt ]; then python3.12 -m pip install --no-cache-dir -r requirements.txt; fi \
- && python3.12 -m pip install --no-cache-dir -e .
+RUN python3.12 -m pip install --no-cache-dir -r requirements/production.txt
 
 ENV DJANGO_SETTINGS_MODULE=enterprise_access.settings.tutor
 
