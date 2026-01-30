@@ -1,5 +1,0 @@
-# Install your custom brand package for ALL MFEs
-# (Fork/clone and customize brand-openedx, then point here.)
-
-RUN npm install --no-save \
-  '@edx/brand@git+https://github.com/<YOURORG>/brand-openedx.git#tcs-default'

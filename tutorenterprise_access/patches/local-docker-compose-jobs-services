@@ -3,7 +3,7 @@ enterprise-access-job:
     image: {{ ENTERPRISE_ACCESS_IMAGE }}
     depends_on:
       mysql:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_started
     environment:

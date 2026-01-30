@@ -23,6 +23,7 @@ hooks.Filters.CONFIG_DEFAULTS.add_items(
         # Database (reuse Tutor's MySQL)
         ("ENTERPRISE_ACCESS_MYSQL_DATABASE", "enterprise_access"),
         ("ENTERPRISE_ACCESS_MYSQL_USERNAME", "enterprise_access"),
+        ("ENTERPRISE_ACCESS_MYSQL_PASSWORD", "{{ 8|random_string }}"),
 
         # Redis (reuse Tutor's Redis; default to its own DB index)
         ("ENTERPRISE_ACCESS_REDIS_DB", 9),
