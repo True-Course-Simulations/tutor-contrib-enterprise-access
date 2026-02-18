@@ -13,3 +13,4 @@ DEBUG = True
 # In dev you often want permissive cookies:
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = {% if ENABLE_HTTPS %}True{% else %}False{% endif %}

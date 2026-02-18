@@ -14,7 +14,7 @@ TIME_ZONE = os.environ.get("TIME_ZONE", "{{ TIME_ZONE | default('UTC') }}")
 LANGUAGE_CODE = os.environ.get("LANGUAGE_CODE", "{{ LANGUAGE_CODE | default('en-us') }}")
 
 # Hosts / CORS / CSRF
-ENTERPRISE_ACCESS_HOSTNAME = "{{ ENTERPRISE_ACCESS_HOST }}"
+ENTERPRISE_ACCESS_HOSTNAME = "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ ENTERPRISE_ACCESS_HOST }}"
 _mfe_origin = "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ MFE_HOST }}"
 
 # ALLOWED_HOSTS: extend safely
