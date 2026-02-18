@@ -5,6 +5,11 @@ import os
 # Rendered by Tutor into the container at build time.
 # -------------------------------------------------------------------
 
+# -------------------------
+# Logging
+# -------------------------
+LOGGING["handlers"]["console"]["level"] = os.environ.get("DJANGO_LOG_LEVEL", "INFO")  # type: ignore[name-defined]
+
 DEBUG = bool(int(os.environ.get("DJANGO_DEBUG", "0")))
 
 SECRET_KEY = os.environ.get("ENTERPRISE_ACCESS_DJANGO_SECRET_KEY", "{{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}")
@@ -45,38 +50,66 @@ CSRF_TRUSTED_ORIGINS = list(set((globals().get("CSRF_TRUSTED_ORIGINS", []) or []
 
 CSRF_COOKIE_SECURE = False
 
-# Database (reuse Tutor MySQL)
+# -------------------------
+# Database (MySQL by default in Tutor)
+# -------------------------
+DB_NAME = os.environ.get("ENTERPRISE_ACCESS_MYSQL_DATABASE", "enterprise_access")
+DB_USER = os.environ.get("ENTERPRISE_ACCESS_MYSQL_USERNAME", "enterprise_access")
+DB_PASSWORD = os.environ.get("ENTERPRISE_ACCESS_MYSQL_PASSWORD", "")
+DB_HOST = os.environ.get("ENTERPRISE_ACCESS_MYSQL_HOST", "mysql")
+DB_PORT = int(os.environ.get("ENTERPRISE_ACCESS_MYSQL_PORT", "3306"))
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "{{ ENTERPRISE_ACCESS_MYSQL_DATABASE }}",
-        "USER": "{{ ENTERPRISE_ACCESS_MYSQL_USERNAME }}",
-        "PASSWORD": "{{ ENTERPRISE_ACCESS_MYSQL_PASSWORD }}",
-        "HOST": "mysql",
-        "PORT": 3306,
+        "NAME": DB_NAME,
+        "USER": DB_USER,
+        "PASSWORD": DB_PASSWORD,
+        "HOST": DB_HOST,
+        "PORT": DB_PORT,
         "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
             "charset": "utf8mb4",
         },
     }
 }
 
-# Cache (reuse Tutor Redis)
-REDIS_DB = int(os.environ.get("ENTERPRISE_ACCESS_REDIS_DB", "{{ ENTERPRISE_ACCESS_REDIS_DB }}"))
+# -------------------------
+# Cache + Celery (Redis from Tutor)
+# -------------------------
+REDIS_HOST = os.environ.get("ENTERPRISE_ACCESS_REDIS_HOST", "redis")
+REDIS_PORT = int(os.environ.get("ENTERPRISE_ACCESS_REDIS_PORT", "6379"))
+REDIS_DB = int(os.environ.get("ENTERPRISE_ACCESS_REDIS_DB", "9"))  # keep separate from LMS/CMS by default
+
+REDIS_URL = os.environ.get("ENTERPRISE_ACCESS_REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": f"redis://redis:6379/{REDIS_DB}",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
         "KEY_PREFIX": "enterprise-access",
+        "LOCATION": "redis://{% if REDIS_USERNAME and REDIS_PASSWORD %}{{ REDIS_USERNAME }}:{{ REDIS_PASSWORD }}{% endif %}@{{ REDIS_HOST }}:{{ REDIS_PORT }}/{{ ENTERPRISECATALOG_CACHE_REDIS_DB }}",
     }
 }
+
+# Celery
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
 
 # If the service uses Django sessions in cache:
 SESSION_ENGINE = os.environ.get("SESSION_ENGINE", "django.contrib.sessions.backends.cache")
 SESSION_CACHE_ALIAS = "default"
 
 # Static/media defaults (safe even if unused)
-STATIC_URL = os.environ.get("STATIC_URL", "/static/")
 MEDIA_URL = os.environ.get("MEDIA_URL", "/media/")
+STATIC_URL = os.environ.get("STATIC_URL", "/static/")
+STATIC_ROOT = os.environ.get("STATIC_ROOT", "/openedx/staticfiles")
+
+MIDDLEWARE = list(MIDDLEWARE)
+try:
+    idx = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+except ValueError:
+    idx = 0
+MIDDLEWARE.insert(idx + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
+MIDDLEWARE = tuple(MIDDLEWARE)
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
