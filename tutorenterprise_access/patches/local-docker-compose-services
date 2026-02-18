@@ -3,7 +3,7 @@ enterprise-access:
     image: {{ ENTERPRISE_ACCESS_IMAGE }}
     restart: unless-stopped
     environment:
-      DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor
+      DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor.production
       DJANGO_SECRET_KEY: {{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}
       DJANGO_ALLOWED_HOSTS: "{{ ENTERPRISE_ACCESS_HOST }},localhost,127.0.0.1"
       DJANGO_CSRF_TRUSTED_ORIGINS: "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ ENTERPRISE_ACCESS_HOST }}"
@@ -25,6 +25,8 @@ enterprise-access:
       interval: 10s
       timeout: 3s
       retries: 30
+    volumes:
+    - ../plugins/enterprise-access/apps/settings/tutor:/openedx/enterprise-access/enterprise_access/settings/tutor:ro
 
 enterprise-access-worker:
   image: {{ ENTERPRISE_ACCESS_IMAGE }}
@@ -32,9 +34,9 @@ enterprise-access-worker:
   depends_on:
     enterprise-access:
       condition: service_healthy
-  command: celery -A enterprise_access worker -l INFO
+  command: /openedx/venv/bin/celery -A enterprise_access worker -l INFO
   environment:
-    DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor
+    DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor.production
     DJANGO_SECRET_KEY: {{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}
     ENTERPRISE_ACCESS_MYSQL_DATABASE: {{ ENTERPRISE_ACCESS_MYSQL_DATABASE }}
     ENTERPRISE_ACCESS_MYSQL_USERNAME: {{ ENTERPRISE_ACCESS_MYSQL_USERNAME }}
@@ -46,3 +48,5 @@ enterprise-access-worker:
     ENTERPRISE_ACCESS_REDIS_DB: "{{ ENTERPRISE_ACCESS_REDIS_DB }}"
     CELERY_BROKER_URL: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
     CELERY_RESULT_BACKEND: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
+  volumes:
+    - ../plugins/enterprise-access/apps/settings/tutor:/openedx/enterprise-access/enterprise_access/settings/tutor:ro

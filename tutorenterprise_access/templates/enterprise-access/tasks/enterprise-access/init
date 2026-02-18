@@ -1,7 +1,5 @@
 echo "Applying enterprise-access migrations..."
-python manage.py migrate --noinput
-
+/openedx/venv/bin/python manage.py migrate --noinput
 echo "Collecting static assets (safe to re-run)..."
-python manage.py collectstatic --noinput || true
-
+/openedx/venv/bin/python manage.py collectstatic --noinput || true
 echo "enterprise-access init done."

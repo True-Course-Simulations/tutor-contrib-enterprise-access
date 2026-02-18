@@ -7,7 +7,7 @@ enterprise-access-job:
       redis:
         condition: service_started
     environment:
-      DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor
+      DJANGO_SETTINGS_MODULE: enterprise_access.settings.tutor.production
       DJANGO_SECRET_KEY: {{ ENTERPRISE_ACCESS_DJANGO_SECRET_KEY }}
       ENTERPRISE_ACCESS_MYSQL_DATABASE: {{ ENTERPRISE_ACCESS_MYSQL_DATABASE }}
       ENTERPRISE_ACCESS_MYSQL_USERNAME: {{ ENTERPRISE_ACCESS_MYSQL_USERNAME }}
@@ -19,3 +19,5 @@ enterprise-access-job:
       ENTERPRISE_ACCESS_REDIS_DB: "{{ ENTERPRISE_ACCESS_REDIS_DB }}"
       CELERY_BROKER_URL: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
       CELERY_RESULT_BACKEND: "redis://redis:6379/{{ ENTERPRISE_ACCESS_REDIS_DB }}"
+    volumes:
+    - ../plugins/enterprise-access/apps/settings/tutor:/openedx/enterprise-access/enterprise_access/settings/tutor:ro

@@ -13,19 +13,37 @@ SECRET_KEY = os.environ.get("ENTERPRISE_ACCESS_DJANGO_SECRET_KEY", "{{ ENTERPRIS
 TIME_ZONE = os.environ.get("TIME_ZONE", "{{ TIME_ZONE | default('UTC') }}")
 LANGUAGE_CODE = os.environ.get("LANGUAGE_CODE", "{{ LANGUAGE_CODE | default('en-us') }}")
 
-# Hosts / CSRF
+# Hosts / CORS / CSRF
 ENTERPRISE_ACCESS_HOSTNAME = "{{ ENTERPRISE_ACCESS_HOST }}"
-ALLOWED_HOSTS = list(set((ALLOWED_HOSTS if "ALLOWED_HOSTS" in globals() else []) + [
+_mfe_origin = "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ MFE_HOST }}"
+
+# ALLOWED_HOSTS: extend safely
+ALLOWED_HOSTS = list(set((globals().get("ALLOWED_HOSTS", []) or []) + [
     ENTERPRISE_ACCESS_HOSTNAME,
     "localhost",
     "127.0.0.1",
     "0.0.0.0",
 ]))
 
-CSRF_TRUSTED_ORIGINS = list(set((CSRF_TRUSTED_ORIGINS if "CSRF_TRUSTED_ORIGINS" in globals() else []) + [
-    f"http://{ENTERPRISE_ACCESS_HOSTNAME}",
-    f"https://{ENTERPRISE_ACCESS_HOSTNAME}",
+# ---- CORS ----
+# Prefer modern setting name; keep old one too for older django-cors-headers
+CORS_ALLOWED_ORIGINS = list(set((globals().get("CORS_ALLOWED_ORIGINS", []) or []) + [
+    _mfe_origin,
 ]))
+CORS_ORIGIN_WHITELIST = list(set((globals().get("CORS_ORIGIN_WHITELIST", []) or []) + [
+    _mfe_origin,
+]))
+
+# Most MFEs need cookies (session/JWT cookie). Without this you'll see blocked credentialed requests.
+CORS_ALLOW_CREDENTIALS = True
+
+# ---- CSRF ----
+# Extend, don't overwrite, because upstream may set other trusted origins.
+CSRF_TRUSTED_ORIGINS = list(set((globals().get("CSRF_TRUSTED_ORIGINS", []) or []) + [
+    _mfe_origin,
+]))
+
+CSRF_COOKIE_SECURE = False
 
 # Database (reuse Tutor MySQL)
 DATABASES = {
