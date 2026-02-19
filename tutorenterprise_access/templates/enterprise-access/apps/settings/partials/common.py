@@ -19,12 +19,11 @@ TIME_ZONE = os.environ.get("TIME_ZONE", "{{ TIME_ZONE | default('UTC') }}")
 LANGUAGE_CODE = os.environ.get("LANGUAGE_CODE", "{{ LANGUAGE_CODE | default('en-us') }}")
 
 # Hosts / CORS / CSRF
-ENTERPRISE_ACCESS_HOSTNAME = "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ ENTERPRISE_ACCESS_HOST }}"
 _mfe_origin = "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ MFE_HOST }}"
 
 # ALLOWED_HOSTS: extend safely
 ALLOWED_HOSTS = list(set((globals().get("ALLOWED_HOSTS", []) or []) + [
-    ENTERPRISE_ACCESS_HOSTNAME,
+    "{{ ENTERPRISE_ACCESS_HOST }}",
     "localhost",
     "127.0.0.1",
     "0.0.0.0",
@@ -87,7 +86,7 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "KEY_PREFIX": "enterprise-access",
-        "LOCATION": "redis://{% if REDIS_USERNAME and REDIS_PASSWORD %}{{ REDIS_USERNAME }}:{{ REDIS_PASSWORD }}{% endif %}@{{ REDIS_HOST }}:{{ REDIS_PORT }}/{{ ENTERPRISECATALOG_CACHE_REDIS_DB }}",
+        "LOCATION": REDIS_URL,
     }
 }
 
@@ -105,11 +104,54 @@ STATIC_URL = os.environ.get("STATIC_URL", "/static/")
 STATIC_ROOT = os.environ.get("STATIC_ROOT", "/openedx/staticfiles")
 
 MIDDLEWARE = list(MIDDLEWARE)
-try:
-    idx = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
-except ValueError:
-    idx = 0
-MIDDLEWARE.insert(idx + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    try:
+        idx = MIDDLEWARE.index("django.contrib.sessions.middleware.SessionMiddleware")
+    except ValueError:
+        idx = 0
+    MIDDLEWARE.insert(idx + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
 MIDDLEWARE = tuple(MIDDLEWARE)
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+
+import json
+{% set jwt_rsa_key | rsa_import_key %}{{ JWT_RSA_PRIVATE_KEY }}{% endset %}
+
+# --- JWT (match other Tutor services: embed JWKS instead of fetching over HTTP) ---
+JWT_AUTH["JWT_ISSUER"] = "{{ JWT_COMMON_ISSUER }}"
+JWT_AUTH["JWT_AUDIENCE"] = "{{ JWT_COMMON_AUDIENCE }}"
+JWT_AUTH["JWT_SECRET_KEY"] = "{{ JWT_COMMON_SECRET_KEY }}"
+
+# Enterprise-access tokens in your browser are RS512, so keep algorithm consistent.
+JWT_AUTH["JWT_ALGORITHM"] = "RS512"
+JWT_AUTH["JWT_VERIFY_EXPIRATION"] = True
+
+# Embed a JWKS payload (avoid network fetch to /oauth2/jwks/)
+JWT_AUTH["JWT_PUBLIC_SIGNING_JWK_SET"] = json.dumps(
+    {
+        "keys": [
+            {
+                "kid": "openedx",
+                "kty": "RSA",
+                "e": "{{ jwt_rsa_key.e|long_to_base64 }}",
+                "n": "{{ jwt_rsa_key.n|long_to_base64 }}",
+            }
+        ]
+    }
+)
+
+# Allow tokens from the common issuer/audience, and use the LMS secret key mapping like other services
+JWT_AUTH["JWT_ISSUERS"] = [
+    {
+        "ISSUER": "{{ JWT_COMMON_ISSUER }}",
+        "AUDIENCE": "{{ JWT_COMMON_AUDIENCE }}",
+        "SECRET_KEY": "{{ OPENEDX_SECRET_KEY }}",
+    }
+]
+
+# Make sure edx-drf-extensions knows where to load user info (often needed for mapping / permissions)
+EDX_DRF_EXTENSIONS = {
+    "OAUTH2_USER_INFO_URL": "{% if ENABLE_HTTPS %}https{% else %}http{% endif %}://{{ LMS_HOST }}/oauth2/user_info",
+}
